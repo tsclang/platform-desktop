@@ -7,24 +7,27 @@ name: bundles
 
 on:
   workflow_dispatch:
+    inputs:
+      targets:
+        description: "JSON array of os targets to build (e.g. [\"linux-x64\"])"
+        required: true
+        default: '["linux-x64", "darwin-arm64"]'
 
 jobs:
   build:
     strategy:
       fail-fast: false
+      # The dispatch narrows the matrix itself: re-running a failed linux
+      # job must not re-upload the already-pinned darwin asset.
       matrix:
-        include:
-          - os: ubuntu-latest
-            targets: linux-x64
-          - os: macos-15
-            targets: darwin-arm64
-    runs-on: ${{ matrix.os }}
+        target: ${{ fromJSON(inputs.targets) }}
+    runs-on: ${{ fromJSON('{"linux-x64":"ubuntu-latest","darwin-arm64":"macos-15"}')[matrix.target] }}
     permissions:
       contents: write
-    timeout-minutes: 60
+    timeout-minutes: 180
     steps:
       - name: Free disk space (LLVM staging needs ~13 GB)
-        if: runner.os == 'Linux'
+        if: matrix.target == 'linux-x64'
         run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup
 
       - name: Checkout compiler repo
@@ -39,11 +42,7 @@ jobs:
           node-version: 22
 
       - name: Build bundles
-        run: |
-          cd tsclang
-          for t in ${{ matrix.targets }}; do
-            node packages/registry/scripts/build-bundles.mjs --target "$t" --only gcc
-          done
+        run: node tsclang/packages/registry/scripts/build-bundles.mjs --target "${{ matrix.target }}" --only gcc
 
       - name: Upload to release
         env:
