@@ -1,0 +1,59 @@
+# Builds the gcc (desktop C compiler) toolchain bundle and attaches it to
+# the `toolchains-v1` release. Posix targets pack LLVM/Clang from upstream
+# portable builds with gcc/g++/cc symlinked to clang (see the bundle NOTICE).
+# darwin-x64 has no upstream LLVM build — the documented fallback there is
+# the system clang from Xcode Command Line Tools.
+name: bundles
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            targets: linux-x64
+          - os: macos-15
+            targets: darwin-arm64
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    timeout-minutes: 60
+    steps:
+      - name: Free disk space (LLVM staging needs ~13 GB)
+        if: runner.os == 'Linux'
+        run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup
+
+      - name: Checkout compiler repo
+        uses: actions/checkout@v4
+        with:
+          repository: tsclang/tsclang
+          ref: develop
+          path: tsclang
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build bundles
+        run: |
+          cd tsclang
+          for t in ${{ matrix.targets }}; do
+            node packages/registry/scripts/build-bundles.mjs --target "$t" --only gcc
+          done
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd tsclang/.tsclang-tmp/bundles/out
+          gh release view toolchains-v1 -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create toolchains-v1 -R "$GITHUB_REPOSITORY" --title "Toolchains v1" --notes "Stable toolchain bundles (sha256-pinned, see README)"
+          for f in *; do
+            echo "uploading $f"
+            gh release upload toolchains-v1 "$f" -R "$GITHUB_REPOSITORY" --clobber
+          done
+          sha256sum * || shasum -a 256 *
