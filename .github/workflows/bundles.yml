@@ -1,6 +1,6 @@
-# Builds the gcc (desktop C compiler) toolchain bundle and attaches it to
-# the `toolchains-v1` release. Posix targets pack LLVM/Clang from upstream
-# portable builds with gcc/g++/cc symlinked to clang (see the bundle NOTICE).
+# Builds the clang (desktop C compiler, #282: desktop is clang/LLVM-only)
+# toolchain bundle and attaches it to the `toolchains-v2` release. Posix
+# targets pack upstream portable LLVM/Clang builds as-is — no gcc aliases;
 # darwin-x64 has no upstream LLVM build — the documented fallback there is
 # the system clang from Xcode Command Line Tools.
 name: bundles
@@ -42,17 +42,17 @@ jobs:
           node-version: 22
 
       - name: Build bundles
-        run: node tsclang/packages/registry/scripts/build-bundles.mjs --target "${{ matrix.target }}" --only gcc
+        run: node tsclang/packages/registry/scripts/build-bundles.mjs --target "${{ matrix.target }}" --only clang
 
       - name: Upload to release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cd tsclang/.tsclang-tmp/bundles/out
-          gh release view toolchains-v1 -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
-            || gh release create toolchains-v1 -R "$GITHUB_REPOSITORY" --title "Toolchains v1" --notes "Stable toolchain bundles (sha256-pinned, see README)"
+          gh release view toolchains-v2 -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create toolchains-v2 -R "$GITHUB_REPOSITORY" --title "Toolchains v2" --notes "Clang/LLVM-only desktop toolchain bundles (#282; sha256-pinned, see README)"
           for f in *; do
             echo "uploading $f"
-            gh release upload toolchains-v1 "$f" -R "$GITHUB_REPOSITORY" --clobber
+            gh release upload toolchains-v2 "$f" -R "$GITHUB_REPOSITORY" --clobber
           done
           sha256sum * || shasum -a 256 *

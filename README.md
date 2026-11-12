@@ -14,15 +14,15 @@ execute, and availability is under our control.
 
 | Tag | Toolchain | OS-arch | Origin | License |
 |-----|-----------|---------|--------|---------|
-| `toolchains-v1` | gcc 16.2.0 | win32-x64 | [WinLibs GCC](https://winlibs.com/) (self-contained MinGW-w64 build) | GPL-3.0 + GCC Runtime Library Exception |
-| `toolchains-v1` | gcc 16.2.0 | linux-x64 | [LLVM/Clang 23.1.5](https://github.com/llvm/llvm-project/releases/tag/llvmorg-23.1.5) official portable build | Apache-2.0 WITH LLVM-exception |
-| `toolchains-v1` | gcc 16.2.0 | darwin-arm64 | LLVM/Clang 23.1.5 official portable build | Apache-2.0 WITH LLVM-exception |
+| `toolchains-v2` | clang 23.1.5 | win32-x64 | [llvm-mingw 20261104](https://github.com/mstorsjo/llvm-mingw/releases/tag/20261104) (LLVM + lld + mingw-w64 UCRT, Martin Storsjö build) | Apache-2.0 WITH LLVM-exception + mingw-w64 |
+| `toolchains-v2` | clang 23.1.5 | linux-x64 | [LLVM/Clang 23.1.5](https://github.com/llvm/llvm-project/releases/tag/llvmorg-23.1.5) official portable build | Apache-2.0 WITH LLVM-exception |
+| `toolchains-v2` | clang 23.1.5 | darwin-arm64 | LLVM/Clang 23.1.5 official portable build | Apache-2.0 WITH LLVM-exception |
 
-Posix bundles ship **LLVM/Clang**: upstream GCC publishes no portable
-linux/macOS binaries, while LLVM ships statically linked ones that run on any
-distribution. The `gcc` toolchain name is preserved — `bin/gcc`, `bin/g++` and
-`bin/cc` are symlinks to `clang`/`clang++` (GNU-compatible driver), stated in
-each archive's `TSC_BUNDLE_NOTICE.txt`.
+Desktop is **clang/LLVM-only** ([#282](https://github.com/tsclang/tsclang/issues/282)):
+every target ships real Clang under its own name, no gcc aliases. Posix
+targets use statically linked upstream LLVM builds that run on any
+distribution; win32 uses llvm-mingw — the only self-contained portable
+Clang + mingw-w64 distribution. The LLVM version matches across targets.
 
 **darwin-x64** (Intel Macs): LLVM publishes no x64 macOS binaries, so no
 bundle is released for it. The documented fallback is the system compiler:
@@ -38,5 +38,6 @@ and license. Layout contract: a `bin/` directory on top (the TSClang
 toolchain resolver prepends it to `PATH` and spawns absolute paths from it).
 
 Release assets are immutable. A new toolchain version ships as a **new tag**
-(`toolchains-v2`, …) plus a package manifest bump — existing installs keep
-verifying against their pinned hash.
+(`toolchains-v3`, …) plus a package manifest bump — existing installs keep
+verifying against their pinned hash. (`toolchains-v1` held the gcc 16.2.0
+bundles of desktop 0.3.0; v2 is the clang transition of #282.)
